@@ -31,8 +31,6 @@ std::pair<std::string, std::string> splitArg(std::string const& arg) {
         p.second = "";
     }
 
-    std::cout << p.first << ", " << p.second << std::endl;
-
     return p;
 }
 
@@ -60,7 +58,7 @@ std::string getFileContent(std::string const& path, std::string const& error = "
 }
 
 void showHelp() {
-    std::cout << "File Generator, by Hazurl" << std::endl;
+    std::cout << "Template File Generator, by Hazurl" << std::endl;
     std::cout << "Replace all selected keyword of a file by a specific value" << std::endl;
     std::cout << "\t-t=... : path to templated file (mandatory)" << std::endl;
     std::cout << "\t-p=... : path to output file (mandatory)" << std::endl;
@@ -73,7 +71,7 @@ void showHelp() {
     std::cout << "The templated file need to write : {{keyword}}" << std::endl;
     std::cout << "There is two modifier available : {{keyword:upper} and {{keyword:lower}}" << std::endl << std::endl;
 
-    std::cout << "Exmaple : " << std::endl;
+    std::cout << "Example : " << std::endl;
     std::cout << "templated_file.txt :\n\tThis is a {{file}}, that can be either {{black:upper}} or {{white:lower}}." << std::endl;
     std::cout << "Command : \n\tfgen -p=output.txt -t=templated_file.txt file=JokE black=FUnny white=nOT" << std::endl;
     std::cout << "ouput.txt : \n\tThis is a JokE, that can be either FUNNY or not." << std::endl;  
