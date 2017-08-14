@@ -1,35 +1,8 @@
 #include <iostream>
 #include <string>
 #include <fstream>  
-
-std::string template_h = "\
-#ifndef __define__\n\
-#define __define__\n\
-\n\
-class __class__ __base__{\n\
-public:\n\
-\t__class__();\n\
-\t__virtual__~__class__();\n\
-\n\
-__protected__\
-private:\n\
-\n\
-};\n\
-#endif\
-";
-
-std::string template_cpp = "\
-#include __include__\n\
-\n\
-__class__::__class__() {\n\
-\t\n\
-}\n\
-\n\
-__class__::~__class__() {\n\
-\t\n\
-}\n\
-";
-
+#include <map>
+#include <algorithm>
 
 void replaceAll(std::string& str, const std::string& from, const std::string& to) {
     size_t start_pos = 0;
@@ -38,143 +11,130 @@ void replaceAll(std::string& str, const std::string& from, const std::string& to
         start_pos += to.length();
     }
 }
-/*
-    --help
-    -f=XXX      --filename=XXX
-    -c=XXX      --class=XXX
-    -v          --virtual
-    -b=XXX      --base=XXX
-    -d=XXX      --define=XXX
-    -i          --include
-    --hpp
+
+void interruptProgram(std::string const& error) {
+    std::cerr << error << std::endl;
+    exit(1);
+}
+
+std::pair<std::string, std::string> splitArg(std::string const& arg) {
+    std::pair<std::string, std::string> p;
+
+    size_t pos_name = 0;
+    size_t pos_equal = arg.find_first_of('=');
+
+    if (pos_equal != std::string::npos) {
+        p.first = arg.substr(pos_name, pos_equal - pos_name);
+        p.second = arg.substr(pos_equal + 1, arg.size() - (pos_equal + 1));
+    } else {
+        p.first = arg.substr(pos_name, arg.size() - (pos_name));
+        p.second = "";
+    }
+
+    std::cout << p.first << ", " << p.second << std::endl;
+
+    return p;
+}
+
+void writeInto (std::string const& path, std::string const& content) {
+    std::ofstream out (path.c_str());
+    std::cout << "Write into : " << path << std::endl;
+    out << content;
+    out.close();
+}
+
+std::string getFileContent(std::string const& path, std::string const& error = "Cannot open file !") {
+    std::ifstream file(path, std::ios::in);
+    if (!file)
+        interruptProgram(error);
+
+    std::string line;
+    std::string content = "";
     
-    --oh=XXX
-    --oc=XXX
-*/
+    while(getline(file, line)) {
+        content += line + "\n";
+    }
+    
+    file.close();
+    return content;
+}
+
+void showHelp() {
+    std::cout << "File Generator, by Hazurl" << std::endl;
+    std::cout << "Replace all selected keyword of a file by a specific value" << std::endl;
+    std::cout << "\t-t=... : path to templated file (mandatory)" << std::endl;
+    std::cout << "\t-p=... : path to output file (mandatory)" << std::endl;
+    std::cout << "\t-b=... : start keyword delimiter (by default \"{{\")" << std::endl;
+    std::cout << "\t-e=... : end keyword delimiter (by default \"}}\")" << std::endl << std::endl;
+
+    std::cout << "To specify keyword to be replaced :" << std::endl;
+    std::cout << "\tkeyword=value" << std::endl << std::endl;
+
+    std::cout << "The templated file need to write : {{keyword}}" << std::endl;
+    std::cout << "There is two modifier available : {{keyword:upper} and {{keyword:lower}}" << std::endl << std::endl;
+
+    std::cout << "Exmaple : " << std::endl;
+    std::cout << "templated_file.txt :\n\tThis is a {{file}}, that can be either {{black:upper}} or {{white:lower}}." << std::endl;
+    std::cout << "Command : \n\tfgen -p=output.txt -t=templated_file.txt file=JokE black=FUnny white=nOT" << std::endl;
+    std::cout << "ouput.txt : \n\tThis is a JokE, that can be either FUNNY or not." << std::endl;  
+}
+
+std::string tryGet(std::map<std::string, std::string> & replacer, std::string const& key, std::string const& error) {
+    auto it = replacer.find(key);
+    if (it == replacer.end())
+        interruptProgram(error);
+
+    return it->second;
+}
+
+std::string getDefault (std::map<std::string, std::string> & replacer, std::string const& key, std::string const& defaultValue) {
+    auto it = replacer.find(key);
+    if (it == replacer.end()) {
+        return defaultValue;
+    }
+    return it->second;
+}
+
+/////////////////////////////////////////////////////////////////
+//                            MAIN                             //
+/////////////////////////////////////////////////////////////////
 
 int main (int argc, const char ** argv) {
-    std::string __include__ = "";
-    std::string __define__ = "";
-    std::string __class__ = "";
-    std::string __base__ = "";
-    std::string __virtual__ = "";
-    std::string __protected__ = "";
+    std::map<std::string, std::string> replacer {};
 
-    bool is_hpp = false;
-    bool is_virtual = false;
-    bool is_include = false;
+    for (int count = argc - 1; count > 0; --count) {
+        auto p = splitArg(argv[count]);
 
-    std::string path_h = "";
-    std::string path_cpp = "";
-    std::string file_name = "";
-    std::string file_name_h = "";
-    std::string file_name_cpp = "";
-
-    bool error = false;
-
-    for (argc = argc - 1; argc > 0; --argc) {
-        std::string arg = argv[argc];
-
-        size_t pos_name = arg.find_first_not_of('-');
-        size_t pos_equal = arg.find_first_of('=');
-
-        std::string cmd = "", res = "";
-
-        if (pos_equal != std::string::npos) {
-            cmd = arg.substr(pos_name, pos_equal - pos_name);
-            res = arg.substr(pos_equal + 1, arg.size() - (pos_equal + 1));
-        } else {
-            cmd = arg.substr(pos_name, arg.size() - (pos_name));
+        if (p.first == "--help") {
+            showHelp();
+            return 0;
         }
 
-        if (cmd == "help") {
-            std::cout << "No help ATM" << std::endl;
-        } else if (cmd == "f" || cmd == "filename") {
-            file_name = res;
-        } else if (cmd == "c" || cmd == "class") {
-            __class__ = res;
-        } else if (cmd == "v" || cmd == "virtual") {
-            is_virtual = true;
-        } else if (cmd == "b" || cmd == "base") {
-            __base__ = res;
-        } else if (cmd == "d" || cmd == "define") {
-            __define__ = res;
-        } else if (cmd == "i" || cmd == "include") {
-            is_include = true;
-        } else if (cmd == "hpp") {
-            is_hpp = true;
-        } else if (cmd == "oc") {
-            path_cpp = res;
-        } else if (cmd == "oh") {
-            path_h = res;
-        } else {
-            error = true;
-            break;
-        }
+        replacer.insert(p);
     }
 
-    if (error) {
-        std::cout << "Something is not working, see --help" << std::endl;
-        return 1;
-    }
-    
-    if (is_virtual) {
-        __virtual__ = "virtual ";
-        __protected__ = "protected:\n\n";
-    }
+    std::string path = tryGet(replacer, "-p", "No path found ! (select it with \"-p=...\")");
+    std::string templated_file = tryGet(replacer, "-t", "No template found ! (select it with \"-t=...\")");
+    std::string delimiterBegin = getDefault(replacer, "-b", "{{");
+    std::string delimiterEnd = getDefault(replacer, "-e", "}}");
 
-    if (__base__ != "") {
-        __base__ = ": " + __base__ + " ";
-    }
+    std::string content = getFileContent(templated_file, "Cannot open template file !");
 
-    if (file_name == "") {
-        file_name = __class__;
-    }
+    for (auto& p : replacer) {
+        if (p.first[0] == '-')
+            continue;
 
-    if (is_hpp) {
-        file_name_h = file_name + ".hpp";
-    } else {
-        file_name_h = file_name + ".h";
+        std::string upper_case = p.second;
+        std::string lower_case = p.second;
+        std::transform(p.second.begin(), p.second.end(), upper_case.begin(), toupper);
+        std::transform(p.second.begin(), p.second.end(), lower_case.begin(), tolower);
+        
+        replaceAll(content, delimiterBegin + p.first + delimiterEnd, p.second);
+        replaceAll(content, delimiterBegin + p.first + ":upper" + delimiterEnd, upper_case);
+        replaceAll(content, delimiterBegin + p.first + ":lower" + delimiterEnd, lower_case);
     }
 
-    file_name_cpp = file_name + ".cpp";
-
-    if (is_include) {
-        if (path_h == "")
-            __include__ = "<" + file_name_h + ">";
-        else
-            __include__ = "<" + path_h + "/" + file_name_h + ">";
-    } else {
-        if (path_h == "")
-            __include__ = "\"" + file_name_h + "\"";
-        else
-            __include__ = "\"" + path_h + "/" + file_name_h + "\"";
-    }
-
-    std::string content_h = template_h;
-    replaceAll(content_h, "__define__", __define__);
-    replaceAll(content_h, "__class__", __class__);
-    replaceAll(content_h, "__virtual__", __virtual__);
-    replaceAll(content_h, "__protected__", __protected__);
-    replaceAll(content_h, "__base__", __base__);
-
-    if (path_h == "") path_h = ".";
-    if (path_cpp == "") path_cpp = ".";
-
-    std::ofstream out_h (std::string(path_h + "/" + file_name_h).c_str());
-    std::cout << "Write into : " << path_h + "/" + file_name_h << std::endl;
-    out_h << content_h;
-    out_h.close();
-
-    std::string content_cpp = template_cpp;
-    replaceAll(content_cpp, "__class__", __class__);
-    replaceAll(content_cpp, "__include__", __include__);
-
-    std::ofstream out_cpp (std::string(path_cpp + "/" + file_name_cpp).c_str());
-    std::cout << "Write into : " << path_cpp + "/" + file_name_cpp << std::endl;
-    out_cpp << content_cpp;
-    out_cpp.close();
-
+    writeInto(path, content);
 
     return 0;
 }
