@@ -1,4 +1,4 @@
-# CppTemplateGenerator
+# templaeFileGenerator
 
 File Generator, by Hazurl
 Replace all selected keyword of a file by a specific value
@@ -13,7 +13,7 @@ To specify keyword to be replaced `keyword=value`
 The templated file need to write : `{{keyword}}`
 There is two modifier available : `{{keyword:upper}}` and `{{keyword:lower}}`
 
-Exmaple :
+## Example :
 
 templated_file.txt :
 ```
